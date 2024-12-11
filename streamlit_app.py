@@ -7,29 +7,29 @@ def apply_soft_tone(image):
     if not isinstance(image, Image.Image):
         image = Image.fromarray(image)
     
-    # Enhance brightness
-    enhancer = ImageEnhance.Brightness(image)
-    image_bright = enhancer.enhance(1.1)
+    # Enhance contrast (약간 낮춤)
+    enhancer = ImageEnhance.Contrast(image)
+    image_contrast = enhancer.enhance(0.85)
     
-    # Enhance contrast
-    enhancer = ImageEnhance.Contrast(image_bright)
-    image_contrast = enhancer.enhance(0.95)
+    # Enhance brightness (살짝 낮춤)
+    enhancer = ImageEnhance.Brightness(image_contrast)
+    image_bright = enhancer.enhance(0.95)
     
-    # Enhance color
-    enhancer = ImageEnhance.Color(image_contrast)
-    image_color = enhancer.enhance(0.9)
+    # Enhance color (채도 낮춤)
+    enhancer = ImageEnhance.Color(image_bright)
+    image_color = enhancer.enhance(0.8)
     
-    # Enhance warmth by adjusting the color balance
+    # Enhance warmth by adjusting the color balance (따뜻한 톤 강화)
     r, g, b = image_color.split()
-    r = ImageEnhance.Brightness(r).enhance(1.1)  # Increase red
-    b = ImageEnhance.Brightness(b).enhance(0.9)  # Decrease blue
-    image_warm = Image.merge('RGB', (r, g, b))
+    r = ImageEnhance.Brightness(r).enhance(1.2)  # 레드 채널 강화
+    g = ImageEnhance.Brightness(g).enhance(1.1)  # 그린 채널 약간 강화
+    b = ImageEnhance.Brightness(b).enhance(0.85)  # 블루 채널 낮춤
     
-    return image_warm
+    return Image.merge('RGB', (r, g, b))
 
 def main():
-    st.title('소프트톤 이미지 필터')
-    st.write('부드러운 색감으로 이미지를 변환해보세요.')
+    st.title('멜로우 필터')
+    st.write('따뜻한 빈티지 색감으로 이미지를 변환해보세요.')
     
     # Multiple file uploader
     uploaded_files = st.file_uploader(
@@ -66,12 +66,11 @@ def main():
             st.download_button(
                 label=f'{uploaded_file.name} 다운로드',
                 data=processed_bytes.getvalue(),
-                file_name=f'{base_name}_soft_tone.png',
+                file_name=f'{base_name}_vintage_tone.png',
                 mime='image/png',
-                key=f'download_{base_name}'  # Unique key for each button
+                key=f'download_{base_name}'
             )
             
-            # Add a separator between images
             st.markdown("---")
 
 if __name__ == '__main__':
