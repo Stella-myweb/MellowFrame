@@ -1,33 +1,54 @@
 import streamlit as st
-from PIL import Image, ImageEnhance
+from PIL import Image
+from PIL import ImageEnhance
 import io
+import base64
 import numpy as np
 
 def apply_filter(image, filter_strength):
-    # Convert PIL Image to numpy array
-    img_array = np.array(image).astype(float) / 255
-    
-    # Basic tone mapping
-    shadows = 1 - img_array
-    result = img_array + (shadows * filter_strength * 0.5)
-    result = np.clip(result, 0, 1)
-    
-    # Convert back to PIL Image
-    processed = Image.fromarray((result * 255).astype(np.uint8))
-    
-    # Adjust color
-    enhancer = ImageEnhance.Color(processed)
-    processed = enhancer.enhance(0.9)  # Slightly reduce saturation
-    
-    # Add warm tone
-    r, g, b = processed.split()
-    r = ImageEnhance.Brightness(r).enhance(1.1)  # Increase red
-    b = ImageEnhance.Brightness(b).enhance(0.9)  # Decrease blue
-    
-    return Image.merge('RGB', (r, g, b))
+    try:
+        # Convert to RGB if not already
+        if image.mode != 'RGB':
+            image = image.convert('RGB')
+            
+        # Convert to numpy array
+        img_array = np.array(image).astype(float) / 255
+        
+        # Apply soft tone effect
+        shadows = 1 - img_array
+        result = img_array + (shadows * filter_strength * 0.5)
+        result = np.clip(result, 0, 1)
+        
+        # Convert back to PIL Image
+        processed = Image.fromarray((result * 255).astype(np.uint8))
+        
+        # Color adjustments
+        enhancer = ImageEnhance.Color(processed)
+        processed = enhancer.enhance(0.9)
+        
+        # Warm tone
+        r, g, b = processed.split()
+        r = ImageEnhance.Brightness(r).enhance(1.1)
+        b = ImageEnhance.Brightness(b).enhance(0.9)
+        
+        return Image.merge('RGB', (r, g, b))
+    except Exception as e:
+        st.error(f"이미지 처리 중 오류가 발생했습니다: {str(e)}")
+        return None
+
+def get_image_download_link(img, filename):
+    buffered = io.BytesIO()
+    img.save(buffered, format='PNG')
+    img_str = base64.b64encode(buffered.getvalue()).decode()
+    href = f'<a href="data:image/png;base64,{img_str}" download="{filename}" style="display:block; cursor:pointer;"><img src="data:image/png;base64,{img_str}" style="width:100%;"></a>'
+    return href
 
 def main():
     st.title('소프트톤 이미지 필터')
+    st.write('이미지를 선택하고 필터 강도를 조절해보세요.')
+    
+    # 필터 강도 슬라이더
+    filter_strength = st.slider('필터 강도', 0.0, 1.0, 0.5, 0.1)
     
     # 파일 업로더
     uploaded_files = st.file_uploader(
@@ -37,52 +58,35 @@ def main():
     )
     
     if uploaded_files:
-        # 필터 강도 슬라이더
-        filter_strength = st.slider('필터 강도', 0.0, 1.0, 0.5, 0.1)
-        
-        processed_images = []
-        
-        # 모든 이미지 처리 및 표시
         for uploaded_file in uploaded_files:
-            # 이미지 읽기
-            image = Image.open(uploaded_file).convert('RGB')
-            
-            # 필터 적용
-            processed = apply_filter(image, filter_strength)
-            
-            # 결과 저장
-            processed_images.append({
-                'name': uploaded_file.name,
-                'processed': processed
-            })
-            
-            # 원본과 처리된 이미지 표시
-            col1, col2 = st.columns(2)
-            with col1:
-                st.write("원본")
-                st.image(image, use_column_width=True)
-            with col2:
-                st.write("처리 결과")
-                st.image(processed, use_column_width=True)
-            
-            st.markdown("---")
-        
-        # 모든 이미지 다운로드 버튼들을 한 곳에 모음
-        st.subheader("처리된 이미지 다운로드")
-        for img_data in processed_images:
-            # 이미지를 바이트로 변환
-            img_byte_arr = io.BytesIO()
-            img_data['processed'].save(img_byte_arr, format='PNG')
-            
-            # 다운로드 버튼 생성
-            base_name = img_data['name'].rsplit('.', 1)[0]
-            st.download_button(
-                label=f'{img_data["name"]} 다운로드',
-                data=img_byte_arr.getvalue(),
-                file_name=f'{base_name}_soft_tone.png',
-                mime='image/png',
-                key=f'download_{base_name}'
-            )
+            try:
+                # 이미지 읽기
+                image = Image.open(uploaded_file)
+                
+                # 필터 적용
+                processed = apply_filter(image, filter_strength)
+                
+                if processed:
+                    # 원본과 처리된 이미지 표시
+                    cols = st.columns(2)
+                    with cols[0]:
+                        st.write("원본")
+                        st.image(image, use_column_width=True)
+                    
+                    with cols[1]:
+                        st.write("처리된 이미지 (클릭하여 다운로드)")
+                        base_name = uploaded_file.name.rsplit('.', 1)[0]
+                        download_filename = f'{base_name}_soft_tone.png'
+                        st.markdown(
+                            get_image_download_link(processed, download_filename),
+                            unsafe_allow_html=True
+                        )
+                    
+                    st.markdown("---")
+                    
+            except Exception as e:
+                st.error(f"{uploaded_file.name} 처리 중 오류가 발생했습니다: {str(e)}")
+                continue
 
 if __name__ == '__main__':
     main() 
