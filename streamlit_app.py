@@ -2,6 +2,7 @@ import streamlit as st
 from PIL import Image, ImageEnhance
 import io
 import numpy as np
+import base64  # 추가된 import
 
 def apply_tone_mapping(image):
     # Convert PIL Image to numpy array
