@@ -1,25 +1,50 @@
 import streamlit as st
 from PIL import Image, ImageEnhance
 import io
+import numpy as np
+
+def apply_tone_mapping(image):
+    # Convert PIL Image to numpy array
+    img_array = np.array(image).astype(float) / 255.0
+    
+    # Separate shadows and highlights
+    shadows = 1 - img_array
+    highlights = img_array
+    
+    # Adjust shadows and highlights
+    shadows_strength = 0.2
+    highlights_strength = 0.2
+    
+    # Apply adjustments
+    result = img_array + (shadows * shadows_strength) - (highlights * highlights_strength)
+    
+    # Ensure values are in valid range
+    result = np.clip(result, 0, 1)
+    
+    # Convert back to PIL Image
+    return Image.fromarray((result * 255).astype(np.uint8))
 
 def apply_soft_tone(image):
     # Convert to PIL Image if it's not already
     if not isinstance(image, Image.Image):
         image = Image.fromarray(image)
     
-    # Enhance contrast (약간 낮춤)
-    enhancer = ImageEnhance.Contrast(image)
+    # Apply tone mapping first
+    image = apply_tone_mapping(image)
+    
+    # Enhance brightness (1.2로 증가)
+    enhancer = ImageEnhance.Brightness(image)
+    image_bright = enhancer.enhance(1.2)
+    
+    # Enhance contrast
+    enhancer = ImageEnhance.Contrast(image_bright)
     image_contrast = enhancer.enhance(0.85)
     
-    # Enhance brightness (살짝 낮춤)
-    enhancer = ImageEnhance.Brightness(image_contrast)
-    image_bright = enhancer.enhance(0.95)
-    
-    # Enhance color (채도 낮춤)
-    enhancer = ImageEnhance.Color(image_bright)
+    # Enhance color (채도 0.8로 낮춤)
+    enhancer = ImageEnhance.Color(image_contrast)
     image_color = enhancer.enhance(0.8)
     
-    # Enhance warmth by adjusting the color balance (따뜻한 톤 강화)
+    # Enhance warmth by adjusting the color balance
     r, g, b = image_color.split()
     r = ImageEnhance.Brightness(r).enhance(1.2)  # 레드 채널 강화
     g = ImageEnhance.Brightness(g).enhance(1.1)  # 그린 채널 약간 강화
@@ -28,7 +53,7 @@ def apply_soft_tone(image):
     return Image.merge('RGB', (r, g, b))
 
 def main():
-    st.title('멜로우 필터')
+    st.title('빈티지 소프트톤 필터')
     st.write('따뜻한 빈티지 색감으로 이미지를 변환해보세요.')
     
     # Multiple file uploader
@@ -74,4 +99,4 @@ def main():
             st.markdown("---")
 
 if __name__ == '__main__':
-    main()
+    main() 
