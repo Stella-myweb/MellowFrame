@@ -1,34 +1,31 @@
 import streamlit as st
-import cv2
-import numpy as np
-from PIL import Image
+from PIL import Image, ImageEnhance
 import io
 
 def apply_soft_tone(image):
-    # Convert to float32
-    image_float = np.float32(image) / 255.0
+    # Convert to PIL Image if it's not already
+    if not isinstance(image, Image.Image):
+        image = Image.fromarray(image)
     
-    # Increase brightness slightly
-    brightness = 1.1
-    image_bright = image_float * brightness
+    # Enhance brightness
+    enhancer = ImageEnhance.Brightness(image)
+    image_bright = enhancer.enhance(1.1)
     
-    # Soft tone curve adjustment
-    image_curve = np.power(image_bright, 0.95)
+    # Enhance contrast
+    enhancer = ImageEnhance.Contrast(image_bright)
+    image_contrast = enhancer.enhance(0.95)
     
-    # Adjust saturation
-    hsv = cv2.cvtColor(image_curve, cv2.COLOR_RGB2HSV)
-    hsv[:, :, 1] = hsv[:, :, 1] * 0.9  # Reduce saturation slightly
-    image_sat = cv2.cvtColor(hsv, cv2.COLOR_HSV2RGB)
+    # Enhance color
+    enhancer = ImageEnhance.Color(image_contrast)
+    image_color = enhancer.enhance(0.9)
     
-    # Add slight warm tone
-    warm_filter = np.array([1.1, 1.0, 0.9])
-    image_warm = image_sat * warm_filter
+    # Enhance warmth by adjusting the color balance
+    r, g, b = image_color.split()
+    r = ImageEnhance.Brightness(r).enhance(1.1)  # Increase red
+    b = ImageEnhance.Brightness(b).enhance(0.9)  # Decrease blue
+    image_warm = Image.merge('RGB', (r, g, b))
     
-    # Ensure values are in valid range
-    final_image = np.clip(image_warm, 0, 1)
-    
-    # Convert back to uint8
-    return (final_image * 255).astype(np.uint8)
+    return image_warm
 
 def main():
     st.title('소프트톤 이미지 필터')
@@ -46,8 +43,7 @@ def main():
             st.write(f"### {uploaded_file.name}")
             
             # Read image
-            image = Image.open(uploaded_file)
-            image = np.array(image)
+            image = Image.open(uploaded_file).convert('RGB')
             
             # Process image
             processed = apply_soft_tone(image)
@@ -63,7 +59,7 @@ def main():
             
             # Convert processed image to bytes for download
             processed_bytes = io.BytesIO()
-            Image.fromarray(processed).save(processed_bytes, format='PNG')
+            processed.save(processed_bytes, format='PNG')
             
             # Create download button for this image
             base_name = uploaded_file.name.rsplit('.', 1)[0]
@@ -79,4 +75,4 @@ def main():
             st.markdown("---")
 
 if __name__ == '__main__':
-    main() 
+    main()
