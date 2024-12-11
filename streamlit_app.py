@@ -11,9 +11,9 @@ def apply_tone_mapping(image):
     shadows = 1 - img_array
     highlights = img_array
     
-    # Adjust shadows and highlights
-    shadows_strength = 0.2
-    highlights_strength = 0.2
+    # Adjust shadows (+5~+10) and highlights (-5~0)
+    shadows_strength = 0.08  # +8% for shadows
+    highlights_strength = 0.03  # -3% for highlights
     
     # Apply adjustments
     result = img_array + (shadows * shadows_strength) - (highlights * highlights_strength)
@@ -32,23 +32,23 @@ def apply_soft_tone(image):
     # Apply tone mapping first
     image = apply_tone_mapping(image)
     
-    # Enhance brightness (1.2로 증가)
+    # Enhance brightness (+10~+15)
     enhancer = ImageEnhance.Brightness(image)
-    image_bright = enhancer.enhance(1.2)
+    image_bright = enhancer.enhance(1.125)  # +12.5%
     
-    # Enhance contrast
+    # Enhance contrast (+15~+20)
     enhancer = ImageEnhance.Contrast(image_bright)
-    image_contrast = enhancer.enhance(0.85)
+    image_contrast = enhancer.enhance(1.175)  # +17.5%
     
-    # Enhance color (채도 0.8로 낮춤)
+    # Enhance color/saturation (+10~+15)
     enhancer = ImageEnhance.Color(image_contrast)
-    image_color = enhancer.enhance(0.8)
+    image_color = enhancer.enhance(1.125)  # +12.5%
     
-    # Enhance warmth by adjusting the color balance
+    # Enhance warmth by adjusting color balance (+5~+10 temperature)
     r, g, b = image_color.split()
-    r = ImageEnhance.Brightness(r).enhance(1.2)  # 레드 채널 강화
-    g = ImageEnhance.Brightness(g).enhance(1.1)  # 그린 채널 약간 강화
-    b = ImageEnhance.Brightness(b).enhance(0.85)  # 블루 채널 낮춤
+    r = ImageEnhance.Brightness(r).enhance(1.075)  # +7.5% red
+    g = ImageEnhance.Brightness(g).enhance(1.025)  # +2.5% green
+    b = ImageEnhance.Brightness(b).enhance(0.95)   # -5% blue
     
     return Image.merge('RGB', (r, g, b))
 
@@ -65,38 +65,37 @@ def main():
     
     if uploaded_files:
         for uploaded_file in uploaded_files:
-            st.write(f"### {uploaded_file.name}")
-            
-            # Read image
-            image = Image.open(uploaded_file).convert('RGB')
-            
-            # Process image
-            processed = apply_soft_tone(image)
-            
-            # Display original and processed images side by side
-            col1, col2 = st.columns(2)
-            with col1:
-                st.write("원본 이미지")
-                st.image(image)
-            with col2:
-                st.write("처리된 이미지")
-                st.image(processed)
-            
-            # Convert processed image to bytes for download
-            processed_bytes = io.BytesIO()
-            processed.save(processed_bytes, format='PNG')
-            
-            # Create download button for this image
-            base_name = uploaded_file.name.rsplit('.', 1)[0]
-            st.download_button(
-                label=f'{uploaded_file.name} 다운로드',
-                data=processed_bytes.getvalue(),
-                file_name=f'{base_name}_vintage_tone.png',
-                mime='image/png',
-                key=f'download_{base_name}'
-            )
-            
-            st.markdown("---")
+            try:
+                # Read image
+                image = Image.open(uploaded_file).convert('RGB')
+                
+                # Process image
+                processed = apply_soft_tone(image)
+                
+                # Display original and processed images side by side
+                col1, col2 = st.columns(2)
+                with col1:
+                    st.write("원본 이미지")
+                    st.image(image)
+                with col2:
+                    st.write("처리된 이미지 (클릭하여 다운로드)")
+                    
+                    # Convert processed image to bytes for download
+                    img_bytes = io.BytesIO()
+                    processed.save(img_bytes, format='PNG')
+                    img_bytes = img_bytes.getvalue()
+                    
+                    # Create clickable image that downloads
+                    st.markdown(
+                        f'<a href="data:image/png;base64,{base64.b64encode(img_bytes).decode()}" download="{uploaded_file.name.rsplit(".", 1)[0]}_edited.png">'
+                        f'<img src="data:image/png;base64,{base64.b64encode(img_bytes).decode()}" width="100%"></a>',
+                        unsafe_allow_html=True
+                    )
+                
+                st.markdown("---")
+                
+            except Exception as e:
+                st.error(f"이미지 처리 중 오류가 발생했습니다: {str(e)}")
 
 if __name__ == '__main__':
     main() 
